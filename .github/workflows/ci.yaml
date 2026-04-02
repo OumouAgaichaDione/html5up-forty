@@ -62,13 +62,21 @@ jobs:
             $DOCKER_REGISTRY/$IMAGE_NAME:$IMAGE_TAG
 
   # ===============================
-  # JOB 3 - CD : DEPLOY
+  # JOB 3 - CD : DEPLOY (CORRIGÉ)
   # ===============================
   deploy:
     needs: security_scan
     runs-on: runner-lab
 
     steps:
+      - name: Check Docker
+        run: docker --version
+
+      - name: Login to Docker Hub
+        run: |
+          echo "${{ secrets.DOCKERHUB_TOKEN }}" | \
+          docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+
       - name: Pull latest image
         run: |
           docker pull $DOCKER_REGISTRY/$IMAGE_NAME:$IMAGE_TAG
@@ -81,9 +89,14 @@ jobs:
         run: |
           docker rm ci-app || true
 
+      - name: Clean unused Docker resources
+        run: |
+          docker system prune -f
+
       - name: Run new container
         run: |
           docker run -d \
             -p 80:80 \
+            --restart=always \
             --name ci-app \
             $DOCKER_REGISTRY/$IMAGE_NAME:$IMAGE_TAG
