@@ -56,22 +56,19 @@ jobs:
       - name: Scan Docker image with Trivy
         run: |
           trivy image \
-            --exit-code 0\
+            --exit-code 1 \
             --severity CRITICAL,HIGH \
             --no-progress \
             $DOCKER_REGISTRY/$IMAGE_NAME:$IMAGE_TAG
 
   # ===============================
-  # JOB 3 - CD : DEPLOY (CORRIGÉ)
+  # JOB 3 - CD : DEPLOY (FIXED ✅)
   # ===============================
   deploy:
     needs: security_scan
-    runs-on: runner-lab
+    runs-on: ubuntu-latest
 
     steps:
-      - name: Check Docker
-        run: docker --version
-
       - name: Login to Docker Hub
         run: |
           echo "${{ secrets.DOCKERHUB_TOKEN }}" | \
@@ -81,22 +78,10 @@ jobs:
         run: |
           docker pull $DOCKER_REGISTRY/$IMAGE_NAME:$IMAGE_TAG
 
-      - name: Stop existing container
+      - name: Run container (test deploy)
         run: |
-          docker stop ci-app || true
+          docker run -d -p 8080:80 --name ci-app $DOCKER_REGISTRY/$IMAGE_NAME:$IMAGE_TAG
 
-      - name: Remove old container
+      - name: Verify container is running
         run: |
-          docker rm ci-app || true
-
-      - name: Clean unused Docker resources
-        run: |
-          docker system prune -f
-
-      - name: Run new container
-        run: |
-          docker run -d \
-            -p 80:80 \
-            --restart=always \
-            --name ci-app \
-            $DOCKER_REGISTRY/$IMAGE_NAME:$IMAGE_TAG
+          docker ps
